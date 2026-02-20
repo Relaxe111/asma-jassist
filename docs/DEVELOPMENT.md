@@ -58,3 +58,22 @@ docker start jira
 ```
 
 Access your personal Jira instance by opening "http://localhost:9090" in your browser and following the setup instructions.
+
+## OAuth Setup for Forks
+
+If you maintain a fork, you can use your own Atlassian OAuth app credentials without changing source code:
+
+- Set `VITE_JA_OAUTH_CLIENT_ID` to your Atlassian 3LO client ID.
+- Optionally set `VITE_JA_OAUTH_REDIRECT_URL` to your callback URL.
+
+Example local setup:
+
+```shell script
+VITE_JA_OAUTH_CLIENT_ID=your-client-id
+VITE_JA_OAUTH_REDIRECT_URL=http://localhost:5173?oauth=jc
+```
+
+In Atlassian Developer Console, ensure callback URLs include the exact URI you use (including query string), for example:
+
+- `http://localhost:5173?oauth=jc`
+- `https://app.jiraassistant.com?oauth=jc`

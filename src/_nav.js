@@ -59,6 +59,12 @@ const navigation = [
                 url: '/calendar',
                 icon: 'fa fa-calendar'
             },
+            calendar && {
+                name: 'Worklog Calendar by Issue',
+                id: 'CAL-ISSUE',
+                url: '/calendar/issue',
+                icon: 'fa fa-calendar'
+            },
             importWorklog && {
                 name: 'Import worklog',
                 id: 'IMW',

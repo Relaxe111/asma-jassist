@@ -20,6 +20,8 @@ import CalendarSettings from './Settings';
 import { DefaultEndOfDay, DefaultStartOfDay, DefaultWorkingDays, EventCategory, momentizedDateFormats } from '../../constants/settings';
 import { WorklogContext } from '../../common/context';
 import ChangeTracker from '../../components/ChangeTracker';
+import { IssuePicker } from '../../jira-controls/IssuePicker';
+import { getUserName } from '../../common/utils';
 import './Calendar.scss';
 
 const viewModes = [
@@ -57,6 +59,8 @@ class Calendar extends BaseGadget {
         else {
             this.state.settings = { viewMode: 'timeGridWeek', showMeetings: true, showWorklogs: true, showInfo: true };
         }
+
+        this.state.selectedIssueKey = '';
         this.setGadgetClass(this.state.settings);
         this.setMenuItems();
 
@@ -184,6 +188,8 @@ class Calendar extends BaseGadget {
             hiddenDays = [];
         }
 
+        const isIssueMode = this.props.issueMode === true;
+
         return {
             plugins: availablePlugins,
             timeZone: 'local',
@@ -200,7 +206,7 @@ class Calendar extends BaseGadget {
             displayEventTime: true,
 
             // Date Clicking & Selecting
-            selectable: true,
+            selectable: !isIssueMode,
 
             // International
             firstDay,
@@ -215,8 +221,8 @@ class Calendar extends BaseGadget {
             dayMaxEventRows: true,
 
             // Event Dragging & Resizing
-            editable: true,
-            droppable: true,
+            editable: !isIssueMode,
+            droppable: !isIssueMode,
 
             // Time-Axis Settings
             slotDuration: zoomIn ? '00:05:00' : '00:15:00',
@@ -321,6 +327,29 @@ class Calendar extends BaseGadget {
     fillEvents(start, end) {
         start = moment(start).startOf('day');
         end = moment(end).endOf('day');
+
+        if (this.props.issueMode === true) {
+            const selectedIssueKey = (this.state.selectedIssueKey || '').trim().toUpperCase();
+            if (!selectedIssueKey) {
+                this.setState({ isLoading: false, uploading: false, events: [], pendingWorklogCount: 0 });
+                return;
+            }
+
+            this.setState({ isLoading: true, uploading: false });
+            this.getIssueWorklogEntries(selectedIssueKey, start, end).then((data) => {
+                const allDayEvents = data.filter((d) => d.entryType === 1)
+                    .groupBy((key) => moment(key.start).format("YYYY-MM-DD"))
+                    .map((d) => this.getAllDayObj(d));
+
+                const mergedData = data.addRange(allDayEvents);
+                this.setColors(mergedData);
+                this.setEventsData(mergedData);
+            }, () => {
+                this.setState({ isLoading: false, uploading: false, events: [], pendingWorklogCount: 0 });
+            });
+            return;
+        }
+
         const filter = (data) => {
             const types = [];
             const ps = this.state.settings;
@@ -381,6 +410,63 @@ class Calendar extends BaseGadget {
 
             filter(data.addRange(allDayEvents).addRange(arr[1]));
         }, (err) => { this.setState({ isLoading: false }); return Promise.reject(err); });
+    }
+
+    async getIssueWorklogEntries(selectedIssueKey, start, end) {
+        const fromDate = start.toDate();
+        const toDate = end.toDate();
+
+        const issues = await this.$jira.searchTickets(
+            `key=${selectedIssueKey}`,
+            ['worklog', 'summary'],
+            0,
+            { worklogStartDate: fromDate, worklogEndDate: toDate }
+        );
+
+        const issue = issues?.first?.() || issues?.[0];
+        if (!issue) {
+            return [];
+        }
+
+        const summary = issue.fields?.summary || '';
+        const worklogs = issue.fields?.worklog?.worklogs || [];
+
+        return worklogs
+            .filter((worklog) => {
+                const startedDate = moment(worklog.started).startOf('day').toDate();
+                return startedDate.getTime() >= fromDate.getTime() && startedDate.getTime() <= toDate.getTime();
+            })
+            .map((worklog) => {
+                const startedTime = moment(worklog.started).toDate();
+                const mins = (worklog.timeSpentSeconds || 0) / 60;
+                const authorName = getUserName(worklog.author) || '(unknown user)';
+                const comment = worklog.comment || '(no comment provided)';
+                const hours = parseInt((mins / 60).toString()).pad(2);
+                const minutes = parseInt((mins % 60).toString()).pad(2);
+
+                const sourceObject = {
+                    ticketNo: issue.key,
+                    summary,
+                    dateStarted: startedTime,
+                    timeSpent: `${hours}:${minutes}`,
+                    worklogId: worklog.id,
+                    description: comment,
+                    isUploaded: true,
+                    createdByName: authorName,
+                    readOnly: true
+                };
+
+                return {
+                    entryType: 1,
+                    start: startedTime,
+                    title: `${issue.key}: ${comment}`,
+                    id: `${issue.key}#${worklog.id}`,
+                    url: '',
+                    end: moment(startedTime).add(mins, 'minutes').toDate(),
+                    editable: false,
+                    sourceObject
+                };
+            });
     }
 
     setLoggedTime(arr, obj) {
@@ -733,7 +819,12 @@ class Calendar extends BaseGadget {
         this.currentMeetingViewItem = null;
 
         if (event.extendedProps.entryType === 1) {
-            this.showWorklogPopup(event.extendedProps.sourceObject);
+            if (this.props.issueMode === true) {
+                this.openTicket(event.extendedProps.sourceObject);
+            }
+            else {
+                this.showWorklogPopup(event.extendedProps.sourceObject);
+            }
         }
         else if (event.extendedProps.entryType === 2) {
             this.currentMeetingViewItem = jsEvent.srcElement;
@@ -849,6 +940,10 @@ class Calendar extends BaseGadget {
             } else if (detailsMode === '3') {
                 subTitle = srcObj?.summary;
             }
+
+            if (srcObj?.createdByName) {
+                subTitle = subTitle ? `${subTitle}\n${srcObj.createdByName}` : srcObj.createdByName;
+            }
         }
 
         if (srcObj) {
@@ -860,15 +955,16 @@ class Calendar extends BaseGadget {
 
         if (entryType === 1) {
             const w = srcObj;
+            if (!this.props.issueMode) {
+                contextEvent = (e) => {
+                    this.mnuWL_Upload.disabled = w.isUploaded;
+                    this.currentWLItem = w;
+                    showContextMenu(e, this.contextMenuItems);
+                    //this.contextMenu.toggle(e);
+                };
 
-            contextEvent = (e) => {
-                this.mnuWL_Upload.disabled = w.isUploaded;
-                this.currentWLItem = w;
-                showContextMenu(e, this.contextMenuItems);
-                //this.contextMenu.toggle(e);
-            };
-
-            leftIcon = (<i className="fa fa-ellipsis-v float-start" title="Show options" onClick={contextEvent} event-icon="true"></i>);
+                leftIcon = (<i className="fa fa-ellipsis-v float-start" title="Show options" onClick={contextEvent} event-icon="true"></i>);
+            }
         }
         else if (entryType === 2) {
             const m = srcObj;
@@ -902,7 +998,7 @@ class Calendar extends BaseGadget {
 
             return (<div ref={(e) => e?.parentElement?.parentElement?.addEventListener('contextmenu', contextEvent)}
                 className="fc-content pad-8" title={title} data-jira-key={srcObj?.ticketNo} data-jira-wl-id={srcObj?.worklogId}>
-                {entryType === 1 && <WorklogOptions worklog={srcObj} onUpload={this.uploadSelectedWorklog} onClone={this.cloneWorklog} />}
+                {entryType === 1 && !this.props.issueMode && <WorklogOptions worklog={srcObj} onUpload={this.uploadSelectedWorklog} onClone={this.cloneWorklog} />}
                 {leftIcon}
                 <div className="fc-time">
                     <span>{timeText}</span>
@@ -1030,13 +1126,34 @@ class Calendar extends BaseGadget {
 
     today = () => this.calendar.getApi().today();
 
+    switchCalendarMode = () => {
+        const { location, navigate } = this.props;
+        const pathname = location?.pathname || window.location.pathname;
+        const targetPath = this.props.issueMode ? pathname.replace(/\/calendar\/issue$/, '/calendar') : pathname.replace(/\/calendar$/, '/calendar/issue');
+
+        if (typeof navigate === 'function') {
+            navigate(targetPath);
+            return;
+        }
+
+        window.location.pathname = targetPath;
+    };
+
     renderCustomActions() {
         const {
             isGadget,
-            state: { pendingWorklogCount, isLoading, uploading, fullView, zoomIn, settings: { viewMode } }
+            state: { pendingWorklogCount, isLoading, uploading, fullView, zoomIn, selectedIssueKey, settings: { viewMode } }
         } = this;
         const isGridMode = viewMode === 'timeGridWeek' || viewMode === 'timeGridDay';
+        const isIssueMode = this.props.issueMode === true;
         return <>
+            {isIssueMode && <IssuePicker value={selectedIssueKey}
+                placeholder="Type Jira issue key"
+                onPick={(issueKey) => this.setState({ selectedIssueKey: issueKey || '' }, this.refreshData)}
+                onInvalid={() => this.setState({ selectedIssueKey: '' }, this.refreshData)}
+                style={{ minWidth: 280 }} />}
+            {!isGadget && <Button text type="secondary" icon="fa fa-filter" label={isIssueMode ? 'Open Calendar' : 'By Issue'} onClick={this.switchCalendarMode}
+                title={isIssueMode ? 'Switch to regular Worklog Calendar' : 'Switch to Worklog Calendar by Issue'} />}
             <Button text label="Today" onClick={this.today} title="Navigate to current week" />
             {isGridMode && <Button text type="secondary" icon={fullView ? 'fa fa-compress' : 'fa fa-expand'} onClick={this.toggleDisplayHours}
                 title={fullView ? "Click to show only working hours in calendar" : "Click to show full day calendar"} />}
@@ -1049,10 +1166,10 @@ class Calendar extends BaseGadget {
             </>}
             <span className="info-badge" title={pendingWorklogCount ? `Upload ${pendingWorklogCount} pending worklog(s)` : 'No worklog pending to be uploaded'}>
                 {pendingWorklogCount > 0 && <span className="info bg-warning text-dark">{pendingWorklogCount}</span>}
-                <Button text type="success" icon={uploading ? 'fa fa-spin fa-spinner' : 'fa fa-upload'} disabled={uploading || pendingWorklogCount < 1 || isLoading} onClick={() => this.uploadWorklog(true)} />
+                <Button text type="success" icon={uploading ? 'fa fa-spin fa-spinner' : 'fa fa-upload'} disabled={isIssueMode || uploading || pendingWorklogCount < 1 || isLoading} onClick={() => this.uploadWorklog(true)} />
             </span>
             <Button text icon="fa fa-refresh" disabled={isLoading || uploading} onClick={this.refreshData} title="Refresh meetings and worklogs" />
-            {!isGadget && <Button text icon="fa fa-cogs" onClick={this.toggleSettingsDialog} title="Show settings" />}
+            {!isGadget && !isIssueMode && <Button text icon="fa fa-cogs" onClick={this.toggleSettingsDialog} title="Show settings" />}
         </>;
     }
 

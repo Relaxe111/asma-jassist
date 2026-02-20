@@ -8,6 +8,7 @@ const expectedBaselinePaths: string[] = [
   "/dashboard/:index",
   "/dashboard",
   "/calendar",
+  "/calendar/issue",
   "/reports/worklog",
   "/reports/pivot",
   "/reports/pivot/:reportId",

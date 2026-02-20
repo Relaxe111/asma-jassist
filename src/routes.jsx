@@ -4,6 +4,7 @@ import config from './customize';
 // Core
 const DashboardComponent = config.modules.dashboards && React.lazy(() => import('./views/dashboard/Dashboard'));
 const CalendarViewComponent = config.modules.calendar && React.lazy(() => import('./views/calendar-view/Calendar'));
+const IssueCalendarViewComponent = config.modules.calendar && React.lazy(() => import('./views/calendar-view/IssueCalendar'));
 
 // Bulk Import
 const ImportWorklogComponent = config.modules.importWorklog && React.lazy(() => import('./views/bulk-import/worklog/ImportWorklog'));
@@ -40,6 +41,10 @@ const sessionBasedRoute = [
     CalendarViewComponent && {
         path: '/calendar',
         component: CalendarViewComponent
+    },
+    IssueCalendarViewComponent && {
+        path: '/calendar/issue',
+        component: IssueCalendarViewComponent
     },
     NewWorklogReportComponent && {
         path: '/reports/worklog',

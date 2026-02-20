@@ -111,7 +111,7 @@
     "webpack-bundle-analyzer": "^4.10.2"
   },
   "scripts": {
-    "start": "vite",
+    "dev": "vite",
     "build": "vite build",
     "postbuild": "node post-build.js",
     "build-web": "vite build",
