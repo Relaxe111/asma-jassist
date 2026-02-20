@@ -1,4 +1,5 @@
 import { prepareUrlWithQueryString } from "../common/utils";
+import { ENV_JA_OAUTH_CLIENT_ID, ENV_JA_OAUTH_REDIRECT_URL } from "./EnvConfig";
 import { JAApiBasePath, JAWebRootUrl } from "./urls";
 
 // #region Jira Cloud OAuth2
@@ -9,18 +10,16 @@ export const jiraCloudRedirectUrl = getJiraCloudRedirectUrl();
 export const jaJiraTokenExchangeUrl = `${JAApiBasePath}/oauth/jira/token`;
 
 function getJiraCloudClientId() {
-    const envClientId = import.meta?.env?.VITE_JA_OAUTH_CLIENT_ID?.trim();
-    if (envClientId) {
-        return envClientId;
+    if (ENV_JA_OAUTH_CLIENT_ID) {
+        return ENV_JA_OAUTH_CLIENT_ID;
     }
 
     return 'WcuXzz2GICjwK6ZUMSlJwcDbTaIC31B6';
 }
 
 function getJiraCloudRedirectUrl() {
-    const envRedirect = import.meta?.env?.VITE_JA_OAUTH_REDIRECT_URL?.trim();
-    if (envRedirect) {
-        return envRedirect;
+    if (ENV_JA_OAUTH_REDIRECT_URL) {
+        return ENV_JA_OAUTH_REDIRECT_URL;
     }
 
     const runtimeLocation = globalThis?.location;
