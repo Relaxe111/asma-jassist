@@ -1,25 +1,17 @@
 //const { whenDev, whenProd, ESLINT_MODES, POSTCSS_MODES } = require("@craco/craco");
 const fs = require('fs-extra');
-const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const { CracoAliasPlugin } = require('react-app-alias');
 
 process.env.REACT_APP_BUILD_DATE = new Date().getTime();
-const buildMode = process.env.REACT_APP_BUILD_MODE;
-const isWebBuild = buildMode === 'WEB';
-const isAppBuild = buildMode === 'APP';
-const isPluginBuild = buildMode === 'PLUGIN';
-const isExtnBuild = !isWebBuild && !isAppBuild && !isPluginBuild;
+const isExtnBuild = false;
 
 const writeToDisk = process.env.WRITE_TO_DISK === "true";
 const analyzeBundles = process.env.ANALYZE_BUNDLES === "true";
 const shouldUseSourceMap = process.env.GENERATE_SOURCEMAP === 'true';
 const shouldUseSourceMap_CSS = process.env.GENERATE_CSS_SOURCEMAP === 'true';
 
-const appDirectory = fs.realpathSync(process.cwd());
-const resolvePath = relativePath => path.resolve(appDirectory, relativePath);
-
-const modulesWithoutHashName = ['background', 'content', 'jira_cs', 'electron', 'preload'];
+const modulesWithoutHashName = [];
 
 const packageJSON = fs.readJsonSync('./package.json');
 const alias = getAliasPackages(packageJSON.aliases);
@@ -47,17 +39,6 @@ module.exports = {
 
             console.log('Homepage configured=', wpConfig.output.publicPath);
 
-            // Use js specific for build target to be pulled while importing a file
-            if (!isWebBuild) { // As .web.js is already part of module extns, no need to customize for web build
-                // Caution: This may cause issue when there is some .web.js files in any npm packages
-                const extns = wpConfig.resolve.extensions.filter(ext => !ext.includes('.web.js')); // Remove .web.js
-                const jsIdx = extns.indexOf('.js');
-                extns.splice(jsIdx, 0, `.${buildMode.toLowerCase()}.js`);
-                const jsxIdx = extns.indexOf('.jsx');
-                extns.splice(jsxIdx, 0, `.${buildMode.toLowerCase()}.jsx`);
-                wpConfig.resolve.extensions = extns;
-            }
-
             // set entry point
             wpConfig.entry = getEntryObject(paths);
 
@@ -72,11 +53,10 @@ module.exports = {
                 );
 
                 const miniCss = wpConfig.plugins.filter(p => p instanceof MiniCssExtractPlugin)[0];
-                const existingCSSFileName = miniCss.options.filename;
-                miniCss.options.filename = (pathData) => (pathData.chunk.name === 'jira_cs'
-                    ? 'static/css/[name].css'
-                    : existingCSSFileName
-                );
+                if (miniCss) {
+                    const existingCSSFileName = miniCss.options.filename;
+                    miniCss.options.filename = existingCSSFileName;
+                }
 
                 /*if (shouldUseSourceMap && !shouldUseSourceMap_CSS) {
                     const filesList = ['.module.scss', '.module.sass', '.module.css'];
@@ -96,51 +76,15 @@ module.exports = {
                 }*/
             }
 
-            if (isAppBuild) {
-                const config = [wpConfig, getElectronMain(wpConfig), getElectronRenderer(wpConfig)];
-                config.output = { publicPath: wpConfig.publicPath };
-                return config;
-            } else {
-                return wpConfig;
-            }
+            return wpConfig;
         }
     }
 };
 
 function getEntryObject(paths) {
-    const result = {
+    return {
         index: paths.appIndexJs
     };
-
-    if (isExtnBuild) {
-        result.background = resolvePath('src/common/background.js');
-        result.menu = resolvePath('src/common/menu.js');
-        result.jira_cs = resolvePath('src/content-scripts/jira.js');
-    } else if (isPluginBuild) {
-        result.index = resolvePath('src/index.plugin.jsx');
-    }
-
-    return result;
-}
-
-// No inner property should be modified directly in this method.
-// Alternatively do deep clone instead
-function getElectronConfig(config, target, entry) {
-    config = { ...config, target, entry };
-    config.output = { ...config.output, filename: '[name].js' };
-    return config;
-}
-
-function getElectronMain(config) {
-    return getElectronConfig(config, 'electron-main', {
-        electron: resolvePath('src/electron/index.js')
-    });
-}
-
-function getElectronRenderer(config) {
-    return getElectronConfig(config, 'electron-renderer', {
-        preload: resolvePath('src/electron/preload.js')
-    });
 }
 
 function getPlugins() {

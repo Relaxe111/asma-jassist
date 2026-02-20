@@ -55,8 +55,24 @@ class CommonDialog extends BaseDialog {
 export default CommonDialog;
 
 class DialogConfig {
+    static changeEvent;
+    static pendingEventArgs;
+
     static onChange(e) {
         DialogConfig.changeEvent = e;
+        if (DialogConfig.pendingEventArgs) {
+            e(...DialogConfig.pendingEventArgs);
+            DialogConfig.pendingEventArgs = null;
+        }
+    }
+
+    triggerChangeEvent(...args) {
+        if (typeof DialogConfig.changeEvent === 'function') {
+            DialogConfig.changeEvent(...args);
+            return;
+        }
+
+        DialogConfig.pendingEventArgs = args;
     }
 
     custom(message, title, footer, styles, dialogId = 'dlg-custom') {
@@ -86,7 +102,7 @@ class DialogConfig {
             this.scope = this.tmpScope;
             this.tmpScope = null;
 
-            DialogConfig.changeEvent(message, title, footer, whenHide, styles, dialogId);
+            this.triggerChangeEvent(message, title, footer, whenHide, styles, dialogId);
         });
 
         return { then };
@@ -97,7 +113,7 @@ class DialogConfig {
     }
 
     hide() {
-        DialogConfig.changeEvent();
+        this.triggerChangeEvent();
     }
 
     alert(message, title, styles, config) {

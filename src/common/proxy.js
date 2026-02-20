@@ -1,6 +1,5 @@
 /* global chrome browser */
 import browserInfo, { BROWSER_NAME } from '../common/browsers';
-import { isAppBuild, isPluginBuild, isWebBuild } from '../constants/build-info';
 import { processResponse } from './proxy-helper';
 import { convertToStorableValue } from './storage-helpers';
 
@@ -21,17 +20,15 @@ export function executeService(svcName, action, args, $message) {
     if (!injected && !chr?.runtime) {
         throw new Error("Unable to connect to extension. Ensure if Jira Assistant extension is installed and not disabled!");
     }
-    if (!isAppBuild && !isPluginBuild) {
-        args = convertToStorableValue(args);
-    }
+    args = convertToStorableValue(args);
     return new Promise((resolve, reject) => {
-        const responder = isAppBuild || isPluginBuild ? resolve : (response) => processResponse(response, $message, resolve, reject);
+        const responder = (response) => processResponse(response, $message, resolve, reject);
 
         try {
             if (injected) {
                 window._executeJASvc(extnId, { svcName, action, args }, responder, reject);
             }
-            else if (!isWebBuild && browserInfo.isFirefox) {
+            else if (browserInfo.isFirefox) {
                 chr.runtime.sendMessage({ svcName, action, args }, responder);
             }
             else {
@@ -45,31 +42,26 @@ export function executeService(svcName, action, args, $message) {
 }
 
 export async function validateIfWebApp(state) {
-    if (isWebBuild) {
-        state.extnUnavailable = true;
-        state.isExtnValid = false;
+    state.extnUnavailable = true;
+    state.isExtnValid = false;
 
-        if (!window.chrome && !window.browser && !hasInjection()) {
-            return state;
-        }
-
-        try {
-            const version = await executeService('SELF', 'VERSION');
-            state.extnVersion = version;
-            // This value should never be changed as this is the first version where this feature is introduced
-            state.extnUnavailable = !version || !(version >= 2.38);
-            // This version can be changed when specific change is available only after a specific version
-            state.isExtnValid = version >= 2.38;
-            const isIntegrated = await executeService('SELF', 'IS_INTEGRATED');
-            state.needIntegration = !isIntegrated;
-            state.authReady = state.isExtnValid && isIntegrated;
-        } catch (err) {
-            console.error('Webapp validation error:', err);
-        }
-
+    if (!window.chrome && !window.browser && !hasInjection()) {
         return state;
     }
-    return false;
+
+    try {
+        const version = await executeService('SELF', 'VERSION');
+        state.extnVersion = version;
+        state.extnUnavailable = !version || !(version >= 2.38);
+        state.isExtnValid = version >= 2.38;
+        const isIntegrated = await executeService('SELF', 'IS_INTEGRATED');
+        state.needIntegration = !isIntegrated;
+        state.authReady = state.isExtnValid && isIntegrated;
+    } catch (err) {
+        console.error('Webapp validation error:', err);
+    }
+
+    return state;
 }
 
 export async function getExtnLaunchUrl(userId, $message) {

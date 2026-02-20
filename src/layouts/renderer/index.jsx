@@ -3,7 +3,7 @@ import { AppContextProvider } from "../../common/context";
 import getLoader from '../../components/loader';
 import { CustomDialog } from "../../dialogs";
 import { withRouter } from "../../pollyfills";
-import Renderer from "./Renderer";
+import Renderer from "./Renderer.web";
 
 function RootContext({ location, navigate, $session, switchUser, ...otherProps }) {
     const [contextProps] = useState({

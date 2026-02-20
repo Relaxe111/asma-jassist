@@ -1,5 +1,3 @@
-import { isPluginBuild } from "./constants/build-info";
-
 const config = {
     modules: { // Controls if a specific module should be included in build or not
         dashboards: true,
@@ -8,13 +6,13 @@ const config = {
         calendar: true,
         importWorklog: true,
         importIssues: true,
-        planningPoker: !isPluginBuild,
+        planningPoker: true,
 
         // Reports
         worklogReport: true,
         pivotReport: true,
         sayDoRatioReport: true,
-        sprintReport: !isPluginBuild,
+        sprintReport: true,
         customReport: true,
         estimateVsActual: true,
 
@@ -24,15 +22,15 @@ const config = {
         advancedSettings: true,
 
         // Others
-        contactUs: !isPluginBuild,
-        contribute: !isPluginBuild
+        contactUs: true,
+        contribute: true
     },
     features: {
         header: {
             shareWithOthers: true,
             themes: true,
-            youtubeHelp: !isPluginBuild,
-            devUpdates: !isPluginBuild,
+            youtubeHelp: true,
+            devUpdates: true,
             jiraUpdates: true
         },
         dashboard: {
@@ -40,12 +38,12 @@ const config = {
             manageGadgets: true
         },
         integrations: {
-            googleCalendar: !isPluginBuild,
+            googleCalendar: true,
             outlookCalendar: true
         },
         common: {
-            analytics: !isPluginBuild,
-            allowWebVersion: !isPluginBuild
+            analytics: true,
+            allowWebVersion: true
         }
     },
     settings: {

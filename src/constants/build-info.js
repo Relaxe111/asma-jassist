@@ -1,8 +1,8 @@
-const buildMode = process.env.REACT_APP_BUILD_MODE;
-const isWebBuild = buildMode === 'WEB';
-const isAppBuild = buildMode === 'APP';
-const isPluginBuild = buildMode === 'PLUGIN';
-const isExtnBuild = !isWebBuild && !isAppBuild && !isPluginBuild;
+const buildMode = 'WEB';
+const isWebBuild = true;
+const isAppBuild = false;
+const isPluginBuild = false;
+const isExtnBuild = false;
 
 const isProdBuild = process.env.NODE_ENV === "production";
 const isDevBuild = !isProdBuild;
@@ -13,11 +13,7 @@ function redirectToRoute(route) {
 
 function getRouteUrl(route) {
     route = route || '/';
-    if (!isWebBuild && route === '/') {
-        route = '';
-    }
-
-    return isWebBuild ? route : (`${isPluginBuild ? '' : '/index.html'}${route ? '#' : ''}${route}`);
+    return route;
 }
 
 export { isWebBuild, isAppBuild, isExtnBuild, isPluginBuild, buildMode, isProdBuild, isDevBuild, redirectToRoute, getRouteUrl };

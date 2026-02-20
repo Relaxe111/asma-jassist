@@ -1,5 +1,4 @@
-import { getRouteUrl, isExtnBuild, isPluginBuild, isWebBuild } from "./constants/build-info";
-import { JAWebRootUrl } from "./constants/urls";
+import { getRouteUrl } from "./constants/build-info";
 import config from './customize';
 
 export function getDashboardMenu(d, idx, userId) {
@@ -79,8 +78,8 @@ const navigation = [
             planningPoker && {
                 name: 'Poker',
                 id: 'PLP',
-                external: !isPluginBuild,
-                url: isExtnBuild ? `${JAWebRootUrl}/poker` : getRouteUrl(isWebBuild ? '/../poker' : '/poker'),
+                external: false,
+                url: getRouteUrl('/poker'),
                 icon: 'fa fa-gamepad'
             }
         ].filter(Boolean)

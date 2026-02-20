@@ -3,7 +3,6 @@ import DevService from './browser-dev-service';
 import StorageService from './storage-service';
 import { AjaxRequestProxyService, BrowserProxyService, StorageProxyService } from './proxy-service';
 import { injectable, inject, injectProdBrowserServices } from './index.common';
-import { isAppBuild, isWebBuild } from '../constants/build-info';
 import registerServices from './index.register';
 
 export { inject };
@@ -19,16 +18,16 @@ export function registerDepnServices(authType) {
 
     registerServices();
 
-    const injectProxy = isWebBuild && authType === '1';
+    const injectProxy = authType === '1';
 
     injectable(injectProxy ? AjaxRequestProxyService : AjaxRequestService, "AjaxRequestService", "$request", { isSingleton: true });
     injectable(injectProxy ? StorageProxyService : StorageService, "StorageService", "$storage", { isSingleton: true });
 
-    if (injectProxy || isAppBuild) {
+    if (injectProxy) {
         console.log("Proxy Browser service injected");
         injectable(BrowserProxyService, "AppBrowserService", "$jaBrowserExtn", { isSingleton: true });
     }
-    else if (!isWebBuild && process.env.NODE_ENV === "production") {
+    else if (process.env.NODE_ENV === "production") {
         injectProdBrowserServices();
     }
     else {

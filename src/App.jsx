@@ -2,9 +2,8 @@ import React, { PureComponent, useEffect, useRef } from 'react';
 import { Toast } from 'primereact/toast';
 import 'moment-timezone/builds/moment-timezone-with-data.min.js';
 import { UrlWatcher } from './pollyfills';
-import { isPluginBuild } from './constants/build-info';
 import { inject } from './services';
-import withInitParams from './layouts/initialization/index';
+import withInitParams from './layouts/initialization/index.web';
 import withAuthInfo from './layouts/authorization/index';
 import Renderer from './layouts/renderer';
 
@@ -19,7 +18,7 @@ class App extends PureComponent {
   render() {
     return (<>
       <MessageBox $message={this.$message} />
-      {!isPluginBuild && <UrlWatcher onChange={this.onRouteChanged} />}
+      <UrlWatcher onChange={this.onRouteChanged} />
 
       <Renderer {...this.props}
         authTypeChosen={this.props.authTypeChosen} $session={this.$session}

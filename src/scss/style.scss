@@ -1,6 +1,8 @@
 // If you want to override variables do it here
 @import "variables";
 
+$fa-font-path: "@fortawesome/fontawesome-free/webfonts";
+
 // Font icons
 @import "@fortawesome/fontawesome-free/scss/fontawesome";
 @import "@fortawesome/fontawesome-free/scss/regular";
