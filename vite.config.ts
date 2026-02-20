@@ -64,4 +64,9 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "build",
   },
+  server: {
+    host: "localhost",
+    port: 9090,
+    strictPort: true,
+  },
 }));
